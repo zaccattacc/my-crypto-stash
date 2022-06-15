@@ -36,7 +36,7 @@ async function generateDeposit(){
   deposit.commitment = poseidon([deposit.nullifier, deposit.secret])
 }
 
-describe("Tornado", function(){
+describe("MyCryptoStash", function(){
   let poseidonContract
 
   before(async () => {
