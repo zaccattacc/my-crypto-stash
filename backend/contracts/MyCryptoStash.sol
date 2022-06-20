@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 interface IVerifier {
     function verifyProof(
         bytes memory proof,
-        uint[6] memory pubSignals
+        uint[] memory pubSignals
     ) external view returns (bool);
 }
 
@@ -39,7 +39,7 @@ abstract contract MyCryptoStash is MerkleTreeWithHistory, ReentrancyGuard{
        
     }
 
-    function _processWithdraw(address payable _recipient, address payable _relayer, uint256 _fee, uint256 _refund) internal {
+    function _processWithdraw(address payable _recipient, address payable _relayer, uint256 _fee) internal {
         require(msg.value == 0, "Message value is supposed to be zero for ETH instance");
 
         (bool success, ) = _recipient.call{ value: (denomination - _fee) }("");
@@ -57,22 +57,23 @@ abstract contract MyCryptoStash is MerkleTreeWithHistory, ReentrancyGuard{
         address payable _recipient,
         address payable _relayer,
         uint256 _fee,
-        uint256 _refund
+        uint256 _time
         ) external payable nonReentrant {
             require(_fee <= denomination, "Fee exceeds transfer value");
             require(!nullifierHashes[_nullifierHash], "The note has been already spent.");
             require(isKnownRoot(_root), "Cannot find your merkle root");
-            require(verifier.verifyProof(_proof, [
-                uint(_root),
-                uint(_nullifierHash),
-                uint(uint160(address(_recipient))),
-                uint(uint160(address(_relayer))),
-                uint(_fee),
-                uint(block.timestamp)
-            ]), "Invalid proof");
+            uint[] memory pubSignals = new uint[](6);
+            pubSignals[0] = uint256(_root);
+            pubSignals[1] = uint256(_nullifierHash);
+            pubSignals[2] = uint256(uint160(address(_recipient)));
+            pubSignals[3] = uint256(uint160(address(_relayer)));
+            pubSignals[4] = uint256(_fee);
+            pubSignals[5] = uint256(_time);
+
+            require(verifier.verifyProof(_proof, pubSignals), "Invalid proof");
 
             nullifierHashes[_nullifierHash] = true;
-            _processWithdraw(_recipient, _relayer, _fee, _refund);
+            _processWithdraw(_recipient, _relayer, _fee);
             // emits Withdraw
         }
 }

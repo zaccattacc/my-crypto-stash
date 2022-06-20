@@ -26,7 +26,7 @@ contract MerkleTreeWithHistory {
     uint32 public currentRootIndex = 0;
     uint32 public nextIndex = 0;
     uint32 public constant ROOT_HISTORY_SIZE = 100;
-    uint256[ROOT_HISTORY_SIZE] public roots;
+    mapping(uint32 => uint256) public roots;
 
     constructor(uint32 _treeLevels, address _hasher) {
         require(_treeLevels > 0, "_treeLevels should be greater than zero");
@@ -95,8 +95,10 @@ contract MerkleTreeWithHistory {
             currentIndex /= 2;
         }
 
-        currentRootIndex = (currentRootIndex + 1) % ROOT_HISTORY_SIZE;
-        roots[currentRootIndex] = currentLevelHash;
+        uint32 newRootIndex = (currentRootIndex + 1) % ROOT_HISTORY_SIZE;
+        currentRootIndex = newRootIndex;
+        roots[newRootIndex] = currentLevelHash;
+
         return nextIndex - 1;
     }
 
