@@ -31,18 +31,17 @@ function getPoseidonFactory(nInputs){
 async function generateDeposit(){
   const poseidon = await buildPoseidon();
 
-  const secret = ethers.utils.randomBytes(31)
-  const nullifier = ethers.utils.randomBytes(31)
+  const deposit = {
+    secret: ethers.utils.randomBytes(31),
+    nullifier: ethers.utils.randomBytes(31),
+  }
+
   const commit = poseidon([
     ethers.BigNumber.from(deposit.nullifier).toBigInt(),
     ethers.BigNumber.from(deposit.secret).toBigInt()
   ])
-
-  const deposit = {
-    secret: secret,
-    nullifier: nullifier,
-    commitment: poseidon.F.toString(commit),
-  }
+  
+  deposit.commitment = poseidon.F.toString(commit)
 
   return deposit
 }
@@ -202,10 +201,8 @@ describe("MyCryptoStash", function(){
     const editedPublicSignals = unstringifyBigInts(publicSignals)
     const calldata = await plonk.exportSolidityCallData(editedProof, editedPublicSignals)
     const argv = calldata.replace(/["[\]\s]/g, "").split(",")
-    // console.log(argv, pathRoot, nullifierHash, recipient, relayer)
-    // const pubSignals = argv.slice(1).map(x => BigInt(x).toString())
     await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, currentTime)
-    const error = await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, currentTime).then(
+    await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, currentTime).then(
       () => {
         assert.fail("Expect tx to fail")
       }, (error) => {
@@ -213,4 +210,50 @@ describe("MyCryptoStash", function(){
       }
     )
   }).timeout(500000)
+
+  it("should fail to generate proof before the withdrawal time", async () => {
+    const deposit = await generateDeposit()
+    const commitmentStr =  deposit.commitment
+    const [signer, relayerSigner, newSigner] = await ethers.getSigners()
+    await myCryptoStash.connect(signer).deposit(commitmentStr, { value: ETH_AMOUNT })
+    const tree = new MerkleTree(HEIGHT, [], { hashFunction: poseidonHash, zeroElement: ZERO_VALUE })
+    tree.insert(commitmentStr)
+
+    const depositIndex = tree.indexOf(commitmentStr)
+    const nullifierHash = poseidonHash(ethers.BigNumber.from(deposit.nullifier).toBigInt(), 1, depositIndex)
+    const recipient = await newSigner.getAddress()
+    const relayer = await relayerSigner.getAddress()
+    const fee = 0
+    const currentTime = Date.now()
+    const unlockTime = currentTime + 1
+
+    const { pathElements, pathIndices, pathRoot } = tree.path(depositIndex)
+    // const now = Date.now()
+    const nullifier = ethers.BigNumber.from(deposit.nullifier).toBigInt()
+    const secret = ethers.BigNumber.from(deposit.secret).toBigInt()
+    const input = stringifyBigInts({
+      // Public inputs
+      "root": pathRoot,
+      nullifierHash,
+      recipient,
+      relayer,
+      fee,
+      currentTime,
+      // Private inputs
+      "toBeUnlocked": unlockTime,
+      "nullifier": nullifier,
+      "secret": secret,
+      "pathElements": pathElements,
+      "pathIndices": pathIndices,
+    })
+
+    await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey").then(
+      () => {
+        assert.fail("Expect proof gen to fail")
+      }, (error) => {
+        expect(error.message).to.have.string("Error: Assert Failed.")
+      }
+    )
+
+  }) 
 })
