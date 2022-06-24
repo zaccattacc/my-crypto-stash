@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-truffle5");
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -29,5 +30,14 @@ module.exports = {
         version: "0.5.5",
       }
     ],
+  },
+  networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545/",
+      allowUnlimitedContractSize: true,
+    }
   },
 };
