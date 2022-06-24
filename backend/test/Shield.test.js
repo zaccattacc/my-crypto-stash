@@ -110,7 +110,6 @@ describe("Shielding test", () => {
         )
 
         const zeroBurnCounterNote = await aztec.note.createZeroValueNote()
-        console.log()
         const newBurnCounterNote = await aztec.note.create(sally.publicKey, 75)
 
 
