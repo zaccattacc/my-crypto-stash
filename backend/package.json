@@ -11,13 +11,10 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@aztec/protocol": "^1.7.1",
     "@nomiclabs/hardhat-ethers": "^2.0.6",
     "@nomiclabs/hardhat-ganache": "^2.0.1",
-    "@nomiclabs/hardhat-truffle5": "^2.0.6",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@nomiclabs/hardhat-web3": "^2.0.0",
-    "aztec.js": "^0.18.1",
     "chai": "^4.3.6",
     "circomlibjs": "^0.1.2",
     "ethereum-waffle": "^3.4.4",
