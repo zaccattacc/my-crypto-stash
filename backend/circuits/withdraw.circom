@@ -38,8 +38,8 @@ template Withdraw(levels) {
     signal input recipient;
     signal input relayer;
     signal input fee;
-    signal input currentTime;
-    signal input toBeUnlocked;
+    signal input withdrawAmount;
+    signal input amount;
     signal input nullifier;
     signal input secret;
     signal input pathElements[levels];
@@ -56,9 +56,10 @@ template Withdraw(levels) {
     nullifierHasher.inputs[2] <== leafIndexNum.out;
     nullifierHasher.out === nullifierHash;
 
-    component commitmentHasher = Poseidon(2);
+    component commitmentHasher = Poseidon(3);
     commitmentHasher.inputs[0] <== nullifier;
     commitmentHasher.inputs[1] <== secret;
+    commitmentHasher.inputs[2] <== amount;
 
     component tree = MerkleTreeInclusionProof(levels);
     tree.leaf <== commitmentHasher.out;
@@ -69,8 +70,8 @@ template Withdraw(levels) {
     }
 
     component timeChecker = GreaterEqThan(64);
-    timeChecker.in[0] <== currentTime;
-    timeChecker.in[1] <== toBeUnlocked;
+    timeChecker.in[0] <== amount;
+    timeChecker.in[1] <== withdrawAmount;
     
     timeChecker.out === 1;
 
@@ -80,4 +81,4 @@ template Withdraw(levels) {
     signal relayerSquare <== relayer * relayer;
 }
 
-component main {public [root, nullifierHash, recipient, relayer, fee, currentTime]} = Withdraw(20);
+component main {public [root, nullifierHash, recipient, relayer, fee, withdrawAmount]} = Withdraw(20);

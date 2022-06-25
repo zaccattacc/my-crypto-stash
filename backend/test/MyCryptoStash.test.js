@@ -13,7 +13,7 @@ const { ContractFactory } = require("ethers")
 const { assert } = require("chai")
 const { expect } = require("chai")
 
-const ETH_AMOUNT = ethers.utils.parseEther("0.1");
+const ETH_AMOUNT = ethers.utils.parseEther("0.1")
 const HEIGHT = 20
 const ZERO_VALUE = "21663839004416932945382355908790599225266501822907911457504978515578255421292"
 
@@ -28,18 +28,33 @@ function getPoseidonFactory(nInputs){
 }
 
 // Generates and returns the Deposit details
-async function generateDeposit(){
+async function generateDeposit(...args){
   const poseidon = await buildPoseidon();
 
   const deposit = {
     secret: ethers.utils.randomBytes(31),
     nullifier: ethers.utils.randomBytes(31),
+    amount: ETH_AMOUNT
   }
 
-  const commit = poseidon([
-    ethers.BigNumber.from(deposit.nullifier).toBigInt(),
-    ethers.BigNumber.from(deposit.secret).toBigInt()
-  ])
+  let commit
+
+  console.log(args)
+
+  if(args.length > 0){
+    commit = poseidon([
+      ethers.BigNumber.from(deposit.nullifier).toBigInt(),
+      ethers.BigNumber.from(deposit.secret).toBigInt(),
+      args[0]
+    ])
+  }
+  else{
+    commit = poseidon([
+      ethers.BigNumber.from(deposit.nullifier).toBigInt(),
+      ethers.BigNumber.from(deposit.secret).toBigInt(),
+      deposit.amount
+    ])
+  }
   
   deposit.commitment = poseidon.F.toString(commit)
 
@@ -81,7 +96,7 @@ describe("MyCryptoStash", function(){
     const res2 = poseidon([1, 2])
 
     chai.assert.equal(res.toString(), poseidon.F.toString(res2))
-  }).timeout(100000);
+  })
 
   it("should deposit", async () => {
 
@@ -90,7 +105,7 @@ describe("MyCryptoStash", function(){
     const deposit = await generateDeposit()
     const commitmentStr =  deposit.commitment
 
-    const tx = await myCryptoStash.connect(signer).deposit(commitmentStr, { value: ETH_AMOUNT })
+    const tx = await myCryptoStash.connect(signer).deposit(commitmentStr, ETH_AMOUNT, { value: ETH_AMOUNT })
 
     // Listens to the emitted event on the blockchain and checks if the deposited commitment == original commitment
     const receipt = await tx.wait()
@@ -113,7 +128,7 @@ describe("MyCryptoStash", function(){
     const deposit = await generateDeposit()
     const commitmentStr =  deposit.commitment
     const [signer, relayerSigner, newSigner] = await ethers.getSigners()
-    await myCryptoStash.connect(signer).deposit(commitmentStr, { value: ETH_AMOUNT })
+    await myCryptoStash.connect(signer).deposit(commitmentStr, ETH_AMOUNT, { value: ETH_AMOUNT })
     const tree = new MerkleTree(HEIGHT, [], { hashFunction: poseidonHash, zeroElement: ZERO_VALUE })
     tree.insert(commitmentStr)
 
@@ -123,7 +138,7 @@ describe("MyCryptoStash", function(){
     const recipient = await newSigner.getAddress()
     const relayer = await relayerSigner.getAddress()
     const fee = 0
-    const currentTime = Date.now()
+    const withdrawAmount = ETH_AMOUNT
 
     const { pathElements, pathIndices, pathRoot } = tree.path(depositIndex)
     // const now = Date.now()
@@ -138,9 +153,9 @@ describe("MyCryptoStash", function(){
       recipient,
       relayer,
       fee,
-      currentTime,
+      withdrawAmount,
       // Private inputs
-      "toBeUnlocked": currentTime,
+      "amount": deposit.amount,
       "nullifier": nullifier,
       "secret": secret,
       "pathElements": pathElements,
@@ -155,7 +170,7 @@ describe("MyCryptoStash", function(){
     const argv = calldata.replace(/["[\]\s]/g, "").split(",")
     
     // Withdraws from app contract.
-    const txWithdraw = await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, currentTime)
+    const txWithdraw = await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount)
     const receiptWithdraw = await txWithdraw.wait()
     console.log("Withdraw gas cost", receiptWithdraw.gasUsed.toNumber())
   })
@@ -164,7 +179,7 @@ describe("MyCryptoStash", function(){
     const deposit = await generateDeposit()
     const commitmentStr =  deposit.commitment
     const [signer, relayerSigner, newSigner] = await ethers.getSigners()
-    await myCryptoStash.connect(signer).deposit(commitmentStr, { value: ETH_AMOUNT })
+    await myCryptoStash.connect(signer).deposit(commitmentStr, ETH_AMOUNT, { value: ETH_AMOUNT })
     const tree = new MerkleTree(HEIGHT, [], { hashFunction: poseidonHash, zeroElement: ZERO_VALUE })
     tree.insert(commitmentStr)
 
@@ -173,7 +188,7 @@ describe("MyCryptoStash", function(){
     const recipient = await newSigner.getAddress()
     const relayer = await relayerSigner.getAddress()
     const fee = 0
-    const currentTime = Date.now()
+    const withdrawAmount = ETH_AMOUNT
 
     const { pathElements, pathIndices, pathRoot } = tree.path(depositIndex)
     // const now = Date.now()
@@ -186,9 +201,9 @@ describe("MyCryptoStash", function(){
       recipient,
       relayer,
       fee,
-      currentTime,
+      withdrawAmount,
       // Private inputs
-      "toBeUnlocked": currentTime,
+      "amount": deposit.amount,
       "nullifier": nullifier,
       "secret": secret,
       "pathElements": pathElements,
@@ -201,8 +216,8 @@ describe("MyCryptoStash", function(){
     const editedPublicSignals = unstringifyBigInts(publicSignals)
     const calldata = await plonk.exportSolidityCallData(editedProof, editedPublicSignals)
     const argv = calldata.replace(/["[\]\s]/g, "").split(",")
-    await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, currentTime)
-    await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, currentTime).then(
+    await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount)
+    await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount).then(
       () => {
         assert.fail("Expect tx to fail")
       }, (error) => {
@@ -211,11 +226,12 @@ describe("MyCryptoStash", function(){
     )
   }).timeout(500000)
 
-  it("should fail to generate proof before the withdrawal time", async () => {
+  it("should withdraw partial amount", async () => {
+    const withdrawAmount = ethers.utils.parseEther("0.05")
     const deposit = await generateDeposit()
     const commitmentStr =  deposit.commitment
     const [signer, relayerSigner, newSigner] = await ethers.getSigners()
-    await myCryptoStash.connect(signer).deposit(commitmentStr, { value: ETH_AMOUNT })
+    await myCryptoStash.connect(signer).deposit(commitmentStr, deposit.amount, { value: ETH_AMOUNT })
     const tree = new MerkleTree(HEIGHT, [], { hashFunction: poseidonHash, zeroElement: ZERO_VALUE })
     tree.insert(commitmentStr)
 
@@ -224,8 +240,6 @@ describe("MyCryptoStash", function(){
     const recipient = await newSigner.getAddress()
     const relayer = await relayerSigner.getAddress()
     const fee = 0
-    const currentTime = Date.now()
-    const unlockTime = currentTime + 1
 
     const { pathElements, pathIndices, pathRoot } = tree.path(depositIndex)
     // const now = Date.now()
@@ -238,22 +252,35 @@ describe("MyCryptoStash", function(){
       recipient,
       relayer,
       fee,
-      currentTime,
+      withdrawAmount,
       // Private inputs
-      "toBeUnlocked": unlockTime,
+      "amount": deposit.amount,
       "nullifier": nullifier,
       "secret": secret,
       "pathElements": pathElements,
       "pathIndices": pathIndices,
     })
 
-    await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey").then(
-      () => {
-        assert.fail("Expect proof gen to fail")
-      }, (error) => {
-        expect(error.message).to.have.string("Error: Assert Failed.")
-      }
-    )
+    const { proof, publicSignals } = await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey")
 
-  }) 
+    const editedProof = unstringifyBigInts(proof)
+    const editedPublicSignals = unstringifyBigInts(publicSignals)
+    const calldata = await plonk.exportSolidityCallData(editedProof, editedPublicSignals)
+    const argv = calldata.replace(/["[\]\s]/g, "").split(",")
+
+    const remainder = await generateDeposit(deposit.amount - withdrawAmount)
+
+    const txWithdraw = await myCryptoStash.connect(relayerSigner).partialWithdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount, remainder.commitment)
+    const receiptWithdraw = await txWithdraw.wait()
+    console.log("Withdraw gas cost", receiptWithdraw.gasUsed.toNumber())
+
+  }).timeout(500000)
 })
+
+    // await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey").then(
+    //   () => {
+    //     assert.fail("Expect proof gen to fail")
+    //   }, (error) => {
+    //     expect(error.message).to.have.string("Error: Assert Failed.")
+    //   }
+    // )
