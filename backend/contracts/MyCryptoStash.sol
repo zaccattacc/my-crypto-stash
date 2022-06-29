@@ -21,9 +21,9 @@ abstract contract MyCryptoStash is MerkleTreeWithHistory, ReentrancyGuard{
     event Deposit(uint256 indexed commitment, uint32 leafIndex, uint256 timestamp);
 
 
-    constructor(address _hasher, uint256 _minDeposit, uint32 _merkleTreeHeight, IVerifier _verifier) MerkleTreeWithHistory(_merkleTreeHeight, _hasher){
+    constructor(address _hasher, uint256 _minDeposit, uint32 _merkleTreeHeight, address _verifier) MerkleTreeWithHistory(_merkleTreeHeight, _hasher){
         require(_minDeposit > 0, "minimum deposit should be greater than 0.");
-        verifier = _verifier;
+        verifier = IVerifier(_verifier);
         minimumDeposit = _minDeposit;
     }
 

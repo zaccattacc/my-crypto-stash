@@ -39,8 +39,6 @@ async function generateDeposit(...args){
 
   let commit
 
-  console.log(args)
-
   if(args.length > 0){
     commit = poseidon([
       ethers.BigNumber.from(deposit.nullifier).toBigInt(),
@@ -274,6 +272,86 @@ describe("MyCryptoStash", function(){
     const receiptWithdraw = await txWithdraw.wait()
     console.log("Withdraw gas cost", receiptWithdraw.gasUsed.toNumber())
 
+  }).timeout(500000)
+
+  it("should reject withdrawal of remaining funds if withdraw amount is higher than remaining amount", async () => {
+    let withdrawAmount = ethers.utils.parseEther("0.05")
+    const deposit = await generateDeposit()
+    const commitmentStr =  deposit.commitment
+    const [signer, relayerSigner, newSigner] = await ethers.getSigners()
+    await myCryptoStash.connect(signer).deposit(commitmentStr, deposit.amount, { value: ETH_AMOUNT })
+    const tree = new MerkleTree(HEIGHT, [], { hashFunction: poseidonHash, zeroElement: ZERO_VALUE })
+    tree.insert(commitmentStr)
+
+    let depositIndex = tree.indexOf(commitmentStr)
+    let nullifierHash = poseidonHash(ethers.BigNumber.from(deposit.nullifier).toBigInt(), 1, depositIndex)
+    const recipient = await newSigner.getAddress()
+    const relayer = await relayerSigner.getAddress()
+    const fee = 0
+
+    const { pathElements, pathIndices, pathRoot } = tree.path(depositIndex)
+    // const now = Date.now()
+    const nullifier = ethers.BigNumber.from(deposit.nullifier).toBigInt()
+    const secret = ethers.BigNumber.from(deposit.secret).toBigInt()
+    const input = stringifyBigInts({
+      // Public inputs
+      "root": pathRoot,
+      nullifierHash,
+      recipient,
+      relayer,
+      fee,
+      withdrawAmount,
+      // Private inputs
+      "amount": deposit.amount,
+      "nullifier": nullifier,
+      "secret": secret,
+      "pathElements": pathElements,
+      "pathIndices": pathIndices,
+    })
+
+    const { proof, publicSignals } = await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey")
+
+    let editedProof = unstringifyBigInts(proof)
+    let editedPublicSignals = unstringifyBigInts(publicSignals)
+    let calldata = await plonk.exportSolidityCallData(editedProof, editedPublicSignals)
+    let argv = calldata.replace(/["[\]\s]/g, "").split(",")
+
+    const remainder = await generateDeposit(deposit.amount - withdrawAmount)
+
+    await myCryptoStash.connect(relayerSigner).partialWithdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount, remainder.commitment)
+
+    tree.insert(remainder.commitment)
+
+    withdrawAmount = ethers.utils.parseEther("0.06")
+    depositIndex = tree.indexOf(commitmentStr)
+    nullifierHash = poseidonHash(ethers.BigNumber.from(remainder.nullifier).toBigInt(), 1, depositIndex)
+    const {pathElements: pathElements2, pathIndices: pathIndices2, pathRoot: pathRoot2 } = tree.path(depositIndex)
+
+    const nullifier2 = ethers.BigNumber.from(deposit.nullifier).toBigInt()
+    const secret2 = ethers.BigNumber.from(deposit.secret).toBigInt()
+    const input2 = stringifyBigInts({
+      // Public inputs
+      "root": pathRoot2,
+      nullifierHash,
+      recipient,
+      relayer,
+      fee,
+      withdrawAmount,
+      // Private inputs
+      "amount": remainder.amount,
+      "nullifier": nullifier2,
+      "secret": secret2,
+      "pathElements": pathElements2,
+      "pathIndices": pathIndices2,
+    })
+
+    await plonk.fullProve(input2, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey").then(
+      () => {
+        assert.fail("Expect proof gen to fail")
+      }, (error) => {
+        expect(error.message).to.have.string("Error: Assert Failed.")
+      }
+    )
   }).timeout(500000)
 })
 
