@@ -6,7 +6,8 @@
   "scripts": {
     "test": "hardhat --network localhost test",
     "compile": "hardhat compile",
-    "deploy": "hardhat run --network localhost scripts/deployer.js"
+    "deploy": "hardhat run --network mainnet scripts/deployer.js",
+    "node": "hardhat node"
   },
   "keywords": [],
   "author": "",

@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { providers } from "ethers"
 import detectEthereumProvider from "@metamask/detect-provider";
 import Deposit from './components/Deposit';
-import { Box, Center } from "@chakra-ui/react"
+import { Box, Center, Tabs, TabList, Tab, TabPanel, TabPanels } from "@chakra-ui/react"
 import Withdrawal from './components/Withdrawal';
-
+import Script from 'next/script';
 
 
 function App() {
@@ -33,13 +33,26 @@ function App() {
 
   return (
     <div>
+      <Script id="snarkjs" src="/snarkjs.min.js" />
       <NavBar connection={connection} connect={() => connect()} />
       <Center>
-      <Box w="75%">
-        <Deposit ethersProvider={ethersProvider}/>
-      </Box>
-      <Box w="75%">
-        <Withdrawal ethersProvider={ethersProvider}/>
+      <Box w="50%">
+
+        <Tabs variant='enclosed'>
+          <TabList>
+            <Tab>Deposit</Tab>
+            <Tab>Withdraw</Tab>
+          </TabList>
+          <TabPanels>
+            <TabPanel>
+              <Deposit ethersProvider={ethersProvider}/>
+            </TabPanel>
+            <TabPanel>
+              <Withdrawal ethersProvider={ethersProvider}/>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+        
       </Box>
       </Center>
     </div>

@@ -4,7 +4,7 @@ const fs = require("fs")
 
 const { poseidonContract, buildPoseidon } = require("circomlibjs")
 const { ethers } = require("hardhat")
-const { plonk } = require("snarkjs")
+const { groth16 } = require("snarkjs")
 const { utils } = require("ffjavascript")
 const { stringifyBigInts, unstringifyBigInts } = utils
 
@@ -13,7 +13,8 @@ const { ContractFactory } = require("ethers")
 const { assert } = require("chai")
 const { expect } = require("chai")
 
-const ETH_AMOUNT = ethers.utils.parseEther("0.1")
+const ETH_AMOUNT = ethers.utils.parseEther("10")
+const MAX_AMOUNT = ethers.utils.parseEther("10000")
 const HEIGHT = 20
 const ZERO_VALUE = "21663839004416932945382355908790599225266501822907911457504978515578255421292"
 
@@ -82,11 +83,11 @@ describe("MyCryptoStash", function(){
   // Deploys the necessary smart contracts before each test
   beforeEach(async function () {
     const [signer] = await ethers.getSigners()
-    const Verifier = await ethers.getContractFactory("PlonkVerifier", signer)
+    const Verifier = await ethers.getContractFactory("Verifier", signer)
     verifier = await Verifier.deploy()
     poseidonContract = await getPoseidonFactory(2).connect(signer).deploy() // deploys poseidon contract
     const MyCryptoStash = await ethers.getContractFactory("ETHMyCryptoStash", signer)
-    myCryptoStash = await MyCryptoStash.deploy(poseidonContract.address, ETH_AMOUNT, HEIGHT, verifier.address) // deploys app contract
+    myCryptoStash = await MyCryptoStash.deploy(poseidonContract.address, ETH_AMOUNT, MAX_AMOUNT, HEIGHT, verifier.address) // deploys app contract
   });
 
   it("generates same poseidon hash", async function (){
@@ -111,6 +112,8 @@ describe("MyCryptoStash", function(){
     chai.assert.equal(events[0].args.commitment, commitmentStr)
     console.log("Deposit gas cost", receipt.gasUsed.toNumber())
     deposit.leafIndex = events[0].args.leafIndex
+    const elements = await myCryptoStash.callStatic.getCommitments()
+    console.log(stringifyBigInts(elements))
 
     // Checks if the root is generated correctly
     const tree = new MerkleTree(HEIGHT, [], { hashFunction: poseidonHash, zeroElement: ZERO_VALUE })
@@ -160,15 +163,20 @@ describe("MyCryptoStash", function(){
       "pathIndices": pathIndices,
     })
 
-    const { proof, publicSignals } = await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey")
+    const { proof, publicSignals } = await groth16.fullProve(input, "circuits/withdraw/withdraw_js/withdraw.wasm", "circuits/withdraw/circuit_final.zkey")
 
     const editedProof = unstringifyBigInts(proof)
     const editedPublicSignals = unstringifyBigInts(publicSignals)
-    const calldata = await plonk.exportSolidityCallData(editedProof, editedPublicSignals)
-    const argv = calldata.replace(/["[\]\s]/g, "").split(",")
+    const calldata = await groth16.exportSolidityCallData(editedProof, editedPublicSignals)
+    const argv = calldata.replace(/["[\]\s]/g, "").split(',').map(x => BigInt(x).toString());
+    const _proof = {
+        a: [argv[0], argv[1]],
+        b: [[argv[2], argv[3]], [argv[4], argv[5]]],
+        c: [argv[6], argv[7]],
+    }
     
     // Withdraws from app contract.
-    const txWithdraw = await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount)
+    const txWithdraw = await myCryptoStash.connect(relayerSigner).withdraw(_proof, pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount)
     const receiptWithdraw = await txWithdraw.wait()
     console.log("Withdraw gas cost", receiptWithdraw.gasUsed.toNumber())
   })
@@ -208,14 +216,21 @@ describe("MyCryptoStash", function(){
       "pathIndices": pathIndices,
     })
 
-    const { proof, publicSignals } = await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey")
+    const { proof, publicSignals } = await groth16.fullProve(input, "circuits/withdraw/withdraw_js/withdraw.wasm", "circuits/withdraw/circuit_final.zkey")
 
     const editedProof = unstringifyBigInts(proof)
     const editedPublicSignals = unstringifyBigInts(publicSignals)
-    const calldata = await plonk.exportSolidityCallData(editedProof, editedPublicSignals)
-    const argv = calldata.replace(/["[\]\s]/g, "").split(",")
-    await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount)
-    await myCryptoStash.connect(relayerSigner).withdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount).then(
+    const calldata = await groth16.exportSolidityCallData(editedProof, editedPublicSignals)
+    const argv = calldata.replace(/["[\]\s]/g, "").split(',').map(x => BigInt(x).toString());
+    const _proof = {
+        a: [argv[0], argv[1]],
+        b: [[argv[2], argv[3]], [argv[4], argv[5]]],
+        c: [argv[6], argv[7]],
+    }
+    
+    // Withdraws from app contract.
+    await myCryptoStash.connect(relayerSigner).withdraw(_proof, pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount)
+    await myCryptoStash.connect(relayerSigner).withdraw(_proof, pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount).then(
       () => {
         assert.fail("Expect tx to fail")
       }, (error) => {
@@ -259,16 +274,22 @@ describe("MyCryptoStash", function(){
       "pathIndices": pathIndices,
     })
 
-    const { proof, publicSignals } = await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey")
+    const { proof, publicSignals } = await groth16.fullProve(input, "circuits/withdraw/withdraw_js/withdraw.wasm", "circuits/withdraw/circuit_final.zkey")
 
     const editedProof = unstringifyBigInts(proof)
     const editedPublicSignals = unstringifyBigInts(publicSignals)
-    const calldata = await plonk.exportSolidityCallData(editedProof, editedPublicSignals)
-    const argv = calldata.replace(/["[\]\s]/g, "").split(",")
+    const calldata = await groth16.exportSolidityCallData(editedProof, editedPublicSignals)
+    const argv = calldata.replace(/["[\]\s]/g, "").split(',').map(x => BigInt(x).toString());
+    const _proof = {
+        a: [argv[0], argv[1]],
+        b: [[argv[2], argv[3]], [argv[4], argv[5]]],
+        c: [argv[6], argv[7]],
+    }
+    
 
     const remainder = await generateDeposit(deposit.amount - withdrawAmount)
 
-    const txWithdraw = await myCryptoStash.connect(relayerSigner).partialWithdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount, remainder.commitment)
+    const txWithdraw = await myCryptoStash.connect(relayerSigner).partialWithdraw(_proof, pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount, remainder.commitment)
     const receiptWithdraw = await txWithdraw.wait()
     console.log("Withdraw gas cost", receiptWithdraw.gasUsed.toNumber())
 
@@ -309,16 +330,20 @@ describe("MyCryptoStash", function(){
       "pathIndices": pathIndices,
     })
 
-    const { proof, publicSignals } = await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey")
+    const { proof, publicSignals } = await groth16.fullProve(input, "circuits/withdraw/withdraw_js/withdraw.wasm", "circuits/withdraw/circuit_final.zkey")
 
-    let editedProof = unstringifyBigInts(proof)
-    let editedPublicSignals = unstringifyBigInts(publicSignals)
-    let calldata = await plonk.exportSolidityCallData(editedProof, editedPublicSignals)
-    let argv = calldata.replace(/["[\]\s]/g, "").split(",")
-
+    const editedProof = unstringifyBigInts(proof)
+    const editedPublicSignals = unstringifyBigInts(publicSignals)
+    const calldata = await groth16.exportSolidityCallData(editedProof, editedPublicSignals)
+    const argv = calldata.replace(/["[\]\s]/g, "").split(',').map(x => BigInt(x).toString());
+    const _proof = {
+        a: [argv[0], argv[1]],
+        b: [[argv[2], argv[3]], [argv[4], argv[5]]],
+        c: [argv[6], argv[7]],
+    }
     const remainder = await generateDeposit(deposit.amount - withdrawAmount)
 
-    await myCryptoStash.connect(relayerSigner).partialWithdraw(argv[0], pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount, remainder.commitment)
+    await myCryptoStash.connect(relayerSigner).partialWithdraw(_proof, pathRoot, nullifierHash, recipient, relayer, fee, withdrawAmount, remainder.commitment)
 
     tree.insert(remainder.commitment)
 
@@ -345,7 +370,7 @@ describe("MyCryptoStash", function(){
       "pathIndices": pathIndices2,
     })
 
-    await plonk.fullProve(input2, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey").then(
+    await groth16.fullProve(input2, "circuits/withdraw/withdraw_js/withdraw.wasm", "circuits/withdraw/circuit_final.zkey").then(
       () => {
         assert.fail("Expect proof gen to fail")
       }, (error) => {
@@ -355,10 +380,10 @@ describe("MyCryptoStash", function(){
   }).timeout(500000)
 })
 
-    // await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey").then(
-    //   () => {
-    //     assert.fail("Expect proof gen to fail")
-    //   }, (error) => {
-    //     expect(error.message).to.have.string("Error: Assert Failed.")
-    //   }
-    // )
+//     // await plonk.fullProve(input, "circuits/withdraw_plonk/withdraw_js/withdraw.wasm", "circuits/withdraw_plonk/circuit_final.zkey").then(
+//     //   () => {
+//     //     assert.fail("Expect proof gen to fail")
+//     //   }, (error) => {
+//     //     expect(error.message).to.have.string("Error: Assert Failed.")
+//     //   }
+//     // )

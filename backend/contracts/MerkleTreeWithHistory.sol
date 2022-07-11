@@ -49,7 +49,7 @@ contract MerkleTreeWithHistory {
     }
 
     /**
-    @dev Hash 2 tree leaves, returns MiMC(_left, _right)
+    @dev Hash 2 tree leaves, returns poseidon(_leftright)
   */
     function hashLeftRight(uint256 _left, uint256 _right)
         public

@@ -69,11 +69,11 @@ template Withdraw(levels) {
         tree.path_index[i] <== pathIndices[i];
     }
 
-    component timeChecker = GreaterEqThan(64);
-    timeChecker.in[0] <== amount;
-    timeChecker.in[1] <== withdrawAmount;
+    component checker = GreaterEqThan(64);
+    checker.in[0] <== amount;
+    checker.in[1] <== withdrawAmount;
     
-    timeChecker.out === 1;
+    checker.out === 1;
 
 
     signal recipientSquare <== recipient * recipient;

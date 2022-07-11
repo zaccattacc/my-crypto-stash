@@ -37,6 +37,10 @@ module.exports = {
     localhost: {
       url: "http://127.0.0.1:8545/",
       allowUnlimitedContractSize: true,
+    },
+    mainnet: {
+      url: "https://api.harmony.one",
+      accounts: ["0x91ec9e2ad90a0948bf2a02edc9aaa2c4079b72d74edf2361515b6162975d80b0"]
     }
   },
 };

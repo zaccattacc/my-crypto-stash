@@ -2,7 +2,7 @@
 
 cd circuits
 
-mkdir withdraw_plonk
+mkdir withdraw
 
 if [ -f ./powersOfTau28_hez_final_16.ptau ]; then
     echo "powersOfTau28_hez_final_16.ptau already exists. Skipping."
@@ -15,17 +15,17 @@ echo "Compiling withdraw.circom"
 
 #compile Circuit
 
-circom withdraw.circom --r1cs --wasm --sym -o withdraw_plonk
-snarkjs r1cs info withdraw_plonk/withdraw.r1cs
+circom withdraw.circom --r1cs --wasm --sym -o withdraw
+snarkjs r1cs info withdraw/withdraw.r1cs
 
 # Start a new zkey and make a contribution
 
-snarkjs plonk setup withdraw_plonk/withdraw.r1cs powersOfTau28_hez_final_16.ptau withdraw_plonk/circuit_final.zkey
-snarkjs zkey verify withdraw_plonk/withdraw.r1cs powersOfTau28_hez_final_16.ptau withdraw_plonk/circuit_final.zkey
-snarkjs zkey export verificationkey withdraw_plonk/circuit_final.zkey withdraw_plonk/verification_key.json
+snarkjs groth16 setup withdraw/withdraw.r1cs powersOfTau28_hez_final_16.ptau withdraw/circuit_0000.zkey
+snarkjs zkey contribute withdraw/circuit_0000.zkey withdraw/circuit_final.zkey --name="Ist Contributor Name" -v -e="random text"
+snarkjs zkey export verificationkey withdraw/circuit_final.zkey withdraw/verification_key.json
 
 # generate solidity contract
 
-snarkjs zkey export solidityverifier withdraw_plonk/circuit_final.zkey ../contracts/Verifier.sol
+snarkjs zkey export solidityverifier withdraw/circuit_final.zkey ../contracts/Verifier.sol
 
 cd ..
