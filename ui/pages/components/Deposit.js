@@ -70,7 +70,7 @@ const Deposit = ({ ethersProvider }) => {
   async function onDeposit(){
     setNote("")
     const provider = new providers.Web3Provider(ethersProvider)
-    const contract = new Contract("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0", ETHMyCryptoStash.abi, provider)
+    const contract = new Contract("0xF8Ae14B6f050eC901f494D81952ffB71A713B006", ETHMyCryptoStash.abi, provider)
 
     await provider.send("eth_requestAccounts", [])
 
