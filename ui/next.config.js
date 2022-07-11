@@ -4,13 +4,14 @@ const nextConfig = {
   env: {
     BASE_URL: process.env.BASE_URL,
   },
-  webpack: function (config, { buildId, dev, isServer, defaultLoaders, webpack }) {
+  webpack: function (config, { buildId, dev, isServer, defaultLoaders, webpack }){
     if (!isServer) {
         config.plugins.push(
             new webpack.ProvidePlugin({
                 global: "global"
             })
         )
+    }
 
         config.resolve.fallback = {
             fs: false,
@@ -23,8 +24,8 @@ const nextConfig = {
             path: false
         }
 
-        return config
-  },
+        return config;
+},
 };
 
 module.exports = nextConfig;
