@@ -39,8 +39,7 @@ module.exports = {
       allowUnlimitedContractSize: true,
     },
     mainnet: {
-      url: "https://api.harmony.one",
-      accounts: ["0x91ec9e2ad90a0948bf2a02edc9aaa2c4079b72d74edf2361515b6162975d80b0"]
+      url: "https://api.harmony.one"
     }
   },
 };

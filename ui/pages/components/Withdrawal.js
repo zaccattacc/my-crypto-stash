@@ -138,7 +138,7 @@ const Withdrawal = ({ethersProvider}) => {
 
         const { pathElements, pathIndices, pathRoot } = tree.path(depositIndex)
 
-
+        
         const nullifierHash = poseidonHash(proofUser.nullifier, 1, depositIndex)
 
         const fee = parseInt(proofUser.amount) * 0.03/100
@@ -208,10 +208,13 @@ const Withdrawal = ({ethersProvider}) => {
 
         const { pathElements, pathIndices, pathRoot } = tree.path(depositIndex)
 
+        console.log(pathRoot, stringifyBigInts(await contract.roots(depositIndex + 1)), proofUser)
 
         const nullifierHash = poseidonHash(proofUser.nullifier, 1, depositIndex)
 
         const fee = parseInt(value) * 0.03/100
+
+        const withdrawAmount = utils.parseEther(value)
 
         // Generates the proof for the withdrawal
         const input = stringifyBigInts({
@@ -221,7 +224,7 @@ const Withdrawal = ({ethersProvider}) => {
             recipient,
             "relayer": relayer.address,
             "fee": utils.parseEther(fee.toString()),
-            "withdrawAmount": utils.parseEther(value),
+            withdrawAmount,
             // Private inputs
             "amount": utils.parseEther(proofUser.amount),
             "nullifier": proofUser.nullifier,
@@ -253,7 +256,7 @@ const Withdrawal = ({ethersProvider}) => {
         const proof = {
             nullifier: nullifier.toString(),
             secret: secret.toString(),
-            amount: value
+            amount: ethers.utils.formatEther(remainder.toString())
         }
 
         const editedProof1 = JSON.stringify(proof)

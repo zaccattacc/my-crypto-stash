@@ -140,6 +140,7 @@ abstract contract MyCryptoStash is MerkleTreeWithHistory, ReentrancyGuard, Holde
             _processWithdraw(_recipient, _relayer, _fee, _amount);
             require(!commitments[_newCommitment], "The commitment has already been submitted.");
             uint32 insertedIndex = _insert(_newCommitment);
+            insertCommitment(_newCommitment);
             commitments[_newCommitment] = true;
 
             emit PartialWithdraw(_recipient, _nullifierHash, _relayer, _fee, _newCommitment);

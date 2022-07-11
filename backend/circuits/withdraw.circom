@@ -69,7 +69,7 @@ template Withdraw(levels) {
         tree.path_index[i] <== pathIndices[i];
     }
 
-    component checker = GreaterEqThan(64);
+    component checker = GreaterEqThan(96);
     checker.in[0] <== amount;
     checker.in[1] <== withdrawAmount;
     
