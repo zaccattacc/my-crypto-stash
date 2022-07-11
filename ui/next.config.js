@@ -6,11 +6,7 @@ const nextConfig = {
   },
   webpack: function (config, { buildId, dev, isServer, defaultLoaders, webpack }){
     if (!isServer) {
-        config.plugins.push(
-            new webpack.ProvidePlugin({
-                global: "global"
-            })
-        )
+      config.resolve.fallback.fs = false;
     }
 
         config.resolve.fallback = {
